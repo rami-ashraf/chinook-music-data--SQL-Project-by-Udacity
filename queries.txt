@@ -1,0 +1,189 @@
+/* Query 1-query used for first insight */
+
+SELECT
+  Customer.Country,
+  COUNT(Customer.Country) AS RockMusicCount,
+  Genre.Name
+
+FROM InvoiceLine
+JOIN Track
+  ON InvoiceLine.TrackId = Track.TrackId
+
+JOIN Genre
+  ON Genre.GenreId = Track.GenreId
+
+JOIN Invoice
+  ON Invoice.InvoiceId = InvoiceLine.InvoiceId
+
+JOIN Customer
+  ON Invoice.CustomerId = Customer.CustomerId
+
+WHERE Genre.Name LIKE 'Rock'
+GROUP BY 1
+ORDER BY 2 DESC
+
+
+
+/* Query 2-query used for second insight */
+
+WITH t1
+AS (SELECT
+  ArtistId,
+  COUNT(ArtistId) songs
+FROM Album al
+JOIN Track tr
+  ON tr.AlbumId = al.AlbumId
+WHERE tr.GenreId = 1
+GROUP BY 1
+ORDER BY 2 DESC)
+
+SELECT
+  t1.ArtistId,
+  ar.Name AS ComposerName_BandName,
+  t1.songs AS Count_Of_Songs
+
+FROM t1
+JOIN Artist ar
+  ON t1.ArtistId = ar.ArtistId
+LIMIT 10;
+
+
+
+/* Query 3 -query used for third insight */
+
+SELECT
+  ar.Name AS ComposerName_BandName,
+  SUM(tr.UnitPrice) AS AmountSpent
+FROM Track tr
+JOIN InvoiceLine in_line
+  ON tr.TrackId = in_line.TrackId
+JOIN Album al
+  ON al.AlbumId = tr.AlbumId
+JOIN Artist ar
+  ON ar.ArtistId = al.ArtistId
+GROUP BY 1
+ORDER BY 2 DESC
+LIMIT 20;
+
+
+
+/* Query 4 -query used for fourth insight */
+
+WITH t1
+AS (SELECT
+  tr.TrackId,
+  ar.Name,
+  invline.UnitPrice
+FROM Track tr
+JOIN InvoiceLine invline
+  ON tr.TrackId = invline.TrackId
+JOIN Album al
+  ON al.AlbumId = tr.AlbumId
+JOIN Artist ar
+  ON ar.ArtistId = al.ArtistId),
+
+t2
+AS (SELECT
+  cu.FirstName,
+  cu.LastName,
+  cu.CustomerId,
+  invline.TrackId
+FROM Invoice inv
+JOIN InvoiceLine invline
+  ON inv.InvoiceId = invline.InvoiceId
+JOIN Customer cu
+  ON cu.CustomerId = inv.CustomerId
+JOIN Track tr
+  ON tr.TrackId = invline.TrackId),
+
+t3
+AS (SELECT
+  t1.Name,
+  t1.UnitPrice,
+  t2.CustomerId,
+  t2.FirstName,
+  t2.LastName
+FROM t1
+JOIN t2
+  ON t1.TrackId = t2.TrackId
+WHERE t1.Name = 'Iron Maiden')
+
+SELECT
+  Name,
+  SUM(UnitPrice) AS Amountspent,
+  CustomerId,
+  FirstName,
+  LastName
+FROM t3
+GROUP BY 3
+ORDER BY 2 DESC
+
+
+
+
+/* Query 5 -query used for fifth insight */
+
+WITH t1
+AS (SELECT
+  Invoice.InvoiceId,
+  Invoice.CustomerId,
+  Invoice.BillingCountry,
+  InvoiceLine.TrackId
+FROM Invoice
+JOIN InvoiceLine
+  ON InvoiceLine.InvoiceId = Invoice.InvoiceId),
+
+t2
+AS (SELECT
+  Track.TrackId,
+  Genre.GenreId,
+  Genre.Name
+FROM Track
+JOIN Genre
+  ON Genre.GenreId = Track.GenreId),
+
+t3
+AS (SELECT
+  t1.InvoiceId,
+  t1.CustomerId,
+  t1.BillingCountry,
+  t1.TrackId,
+  t2.GenreId,
+  COUNT(t2.GenreId) AS purchases,
+  t2.Name
+FROM t1
+JOIN t2
+  ON t1.TrackId = t2.TrackId
+GROUP BY 5,
+         3
+ORDER BY 3),
+
+t4
+AS (SELECT
+  t3.purchases AS MaxPurchases,
+  t3.BillingCountry AS CountryName,
+  t3.Name,
+  t3.GenreId
+FROM t3
+GROUP BY 2),
+
+t5
+AS (SELECT
+  t3.purchases AS Purchases,
+  t4.MaxPurchases AS MaxPurchases,
+  t3.BillingCountry AS CountryName,
+  t3.Name,
+  t3.GenreId
+FROM t3
+JOIN t4
+  ON t4.CountryName = t3.BillingCountry)
+
+
+SELECT
+  Purchases,
+  CountryName,
+  Name,
+  GenreId
+FROM t5
+WHERE Purchases = MaxPurchases
+ORDER BY 1 DESC
